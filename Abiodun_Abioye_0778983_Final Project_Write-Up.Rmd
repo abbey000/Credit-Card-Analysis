@@ -1,0 +1,209 @@
+---
+title: "Abiodun_Abioye_0778983_Final Project Write Up"
+output:
+  word_document: default
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(fig.width = 7,fig.height = 5)
+# Load useful packages
+library(tidyverse)
+library(hablar)
+library(gridExtra)
+library(ggridges)
+library(plotly)
+library(here)
+library(modelr)
+library(patchwork)
+library(webshot)
+options(na.action = na.warn)
+```
+
+```{r echo=FALSE,message=FALSE}
+# Load Dataset
+CreditCard <- read_csv("Data/CreditCard.csv")
+```
+
+```{r echo=FALSE,message=FALSE}
+# Convert variables to correct datatypes
+CreditCard_df <- convert(CreditCard, int(age, dependents, months, active))
+```
+
+### Introduction
+This document shows a detailed analysis on the CreditCard dataset. Answers to analysis questions are provided. 
+
+```{r echo=FALSE,message=FALSE}
+#Take out outlier values (i.e. Age < 18)
+new_CreditCard <- CreditCard_df %>%
+  filter(age >= 18 )
+```
+
+##### Weak, positive linear relationship between age and income. 
+
+Older people tend to make more money. Self employment status (no and yes) is evenly distributed across age and income bracket. Regular workers (who are not self employed) have a more positive relationship. This means that the yearly income of regular workers increases more with age and self-employed people.
+
+```{r echo=FALSE}
+ggplot(new_CreditCard, aes(x=income, y=age, colour = selfemp)) + geom_point()+ geom_smooth(method = 'lm', se=FALSE) + labs(x= "Yearly income(USD10,000)", y="Age")
+```
+
+
+##### A 1 year increase in age leads to an increase of \$500 in yearly income
+
+```{r echo=FALSE}
+m3 <- lm(income ~ age, data = new_CreditCard)
+summary(m3)
+```
+
+##### Correlation between income and age. 
+
+```{r echo=FALSE}
+cor(new_CreditCard$income, new_CreditCard$age)
+```
+
+##### No clear relationship between age and expenditure. 
+```{r echo=FALSE}
+ggplot(new_CreditCard, aes(x=expenditure, y=age, colour = selfemp)) + geom_point()+ geom_smooth(method = 'lm', se=FALSE) + labs(x= "Monthly Credit Card Expenditure", y="Age")
+```
+
+##### Correletation coefficient - Age and Expenditure
+```{r echo=FALSE}
+cor(new_CreditCard$age, new_CreditCard$expenditure)
+```
+
+##### Log Transformation of expenditure. 
+
+```{r echo=FALSE}
+p1 <- ggplot(x = expenditure, data = new_CreditCard)
+p1 <- qplot(x = expenditure, data = new_CreditCard)
+p2 <- qplot(x = log10(income + 1), data = new_CreditCard)
+grid.arrange(p1, p2, ncol = 1)
+```
+
+##### For every \$1,000 in income, there will be an increase in average monthly credit card expenditure of \$45.240. 
+
+```{r echo=FALSE}
+m1 <- lm(expenditure ~ income, data = new_CreditCard)
+summary(m1)
+```
+
+##### Very Weak, positive linear relationship between Yearly income (x axis) and average monthly credit card expenditure (y axis). 
+
+```{r echo=FALSE}
+fig1 <- plot_ly(new_CreditCard, x = ~income, y = ~expenditure, type  = 'scatter', mode = 'markers') 
+                
+fig <- subplot(fig1)
+fig
+```
+
+##### Correlation coefficient between Income and Expenditure. 
+
+```{r echo=FALSE}
+cor(new_CreditCard$income, new_CreditCard$expenditure)
+```
+
+```{r echo=FALSE}
+ggplot(new_CreditCard, aes(x=income,y=expenditure )) + geom_point()+ geom_smooth(method="lm", colour="red")
+```
+
+##### Add & Plot Predictions
+
+```{r echo=FALSE}
+grid <- new_CreditCard %>%
+  data_grid(income)
+grid <-grid %>%
+  add_predictions(m1)
+
+ggplot(new_CreditCard, aes(income)) + geom_point(aes(y = expenditure)) + geom_line(aes(y = pred), data = grid, colour = "red", size = 1)
+new_CreditCard <- new_CreditCard %>%
+  add_residuals(m1)
+```
+
+##### Residuals Plot
+
+```{r echo=FALSE}
+a <- ggplot(new_CreditCard, aes(resid,expenditure))+geom_ref_line(h = 0)+geom_point()
+b <- ggplot(new_CreditCard, aes(resid)) + geom_freqpoly(binwidth = 20)
+a/b
+```
+
+##### Every single increase in depenpents leads to an increase of $11 in average monthly credit card expense. 
+
+```{r echo=FALSE}
+m2 <- glm(expenditure ~ dependents, data = new_CreditCard)
+summary(m2)
+coef(m2)
+```
+
+##### Older people are more likely to own a home and stay there for longer periods
+
+```{r echo=FALSE}
+ggplot(new_CreditCard, aes(x=age, y=months, colour=owner)) + geom_point() + geom_smooth(method = 'lm', se=FALSE) + labs(title = "Comparing Age and Duration Living in current address", x = "Age", y = "Months")
+```
+
+##### Applicants with Derogatory Reports mostly had their applications denied. 
+
+```{r echo=FALSE}
+ggplot(new_CreditCard, aes(x=card, y=reports)) + geom_col(fill = 'green') + labs(title = "Reports to Card Approval", x="Card Approval", y="Derogatory Reports")
+```
+
+##### Majority of applicants had their cards approved. There is a higher approval rate in the home owners category 
+
+```{r echo=FALSE}
+ggplot(new_CreditCard, aes(x=card, fill = owner)) + geom_bar() + labs(title = "Home owner card approval", x="Card Approval", y="Count")
+```
+
+##### Only a minority of applicants are self employed. 
+
+```{r echo=FALSE}
+ggplot(new_CreditCard, aes(x=card, fill = selfemp)) + geom_bar() + labs(title = "Self Employment Card Approval", x="Card Approval", y="Count")
+```
+
+##### Impact of Self Employment on Card Approval. 
+
+Self Employed workers have a slightly lower card approval rate than employed workers
+
+```{r echo=FALSE}
+selfemp_prop <- table(new_CreditCard$selfemp, new_CreditCard$card)
+#prop.table(selfemp_prop)
+
+ggplot(new_CreditCard, aes(x=selfemp, fill = card)) + geom_bar(position = "fill") + ylab("Proportion") + xlab("Self Employment Status")
+```
+
+##### Income doesnt really influence card approval. 
+
+```{r echo=FALSE}
+ggplot(new_CreditCard, aes(y=card, x = income)) + geom_boxplot() + labs(title = "Comparing Income to Card Approval", x = "Yearly Income USD10,000", y="Card Approval")
+```
+
+
+## Discussion
+The following can be deduced from the analysis:
+
+##### Income
+1) Correlation between age and yearly income - The analysis shows that income increases with age. This is more so for employees
+
+##### Expenditure
+2) Average monthly credit card expenditure increases with income - From the output of the regression analysis, we can deduce that for every $1,000 increase in yearly income, there is a $45 increase in credit card expenditure
+3) Age - No correlation between age and monthly credit card expenditure
+3) Dependents - A single increase in the number of dependents leads to an increase of $11 in monthly credit card expenditure
+
+##### Card Approval
+4) Derogatory reports reduces chances of card approval
+5) Home ownership increases an applicants chances of getting card approval
+6) Though self employed applicants have a lower approval rate, the difference is not significant. Hence, we will conclude that self employment status has very little influence on credit card approval
+7) Income has very little influence on card approval
+
+##### Prediction
+A significant amount of the residuals fall close to 0. Hence, we can conclude that the model is a fairly good prediction model. 
+
+
+## Conclusion
+Credit Card companies should focus on acquiring customers with higher income who have a number of dependents. Analysis shows that these customers will spend more on their credit card and make more revenue for the company.
+Card companies should also target home owners; analysis shows that they are more stable(less likely to change location)
+
+### Project Criticism
+Further understanding and improvement is required to enhance the level of accuracy of the prediction model.

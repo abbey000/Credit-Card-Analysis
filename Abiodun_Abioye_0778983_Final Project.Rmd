@@ -1,0 +1,176 @@
+---
+title: "Abiodun Abioye Final Project-Proposal"
+output:
+  word_document: default
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(fig.width = 7,fig.height = 5)
+
+library(tidyverse)
+library(hablar)
+library(ggridges)
+library(here)
+library(psych)
+```
+
+```{r echo=FALSE,message=FALSE}
+#Load dataset
+CreditCard <- read_csv("Data/CreditCard.csv")
+```
+
+## Section 1
+
+### Introduction
+
+The dataset contains the cross-section data on the credit history for a sample of applicants for a type of credit card.
+The dataset contains 1,319 observations on 12 variables.
+The dataset was downloaded from Datasets in R Packages portal.
+
+The analysis aims to investigate the variables that influence credit card approvals. I will also be using models to predict monthly credit card expenditure using age and yearly income.  
+
+Source: [Click Here](https://vincentarelbundock.github.io/Rdatasets/datasets.html)
+
+### Hypothesis:
+1) Monthly credit card expenditure increases with yearly income.
+2) Self employed applicants are more risky and hence should have lower card approval rates 
+
+The variables, datatype and a brief description are listed below:
+
+------------------------------------------------------------------------
+
+> 1: *card* \| *character* \| *Was the application for a credit card accepted?*\
+> 2: *reports* \| *double* \| *Number of major derogatory reports.*\
+> 3: *age* \| *double* \| *Age in years plus twelfths of a year.*\
+> 4: *income* \| *double* \| *Yearly income (in USD 10,000).*\
+> 5: *share* \| *double* \| *Ratio of monthly credit card expenditure to yearly income.*\
+> 6: *expenditure* \| *double* \| *Average monthly credit card expenditure.*\
+> 7: *owner* \| *character* \| *Does the individual own their home?*\
+> 8: *selfemp* \| *character* \| *Is the individual self-employed?*\
+> 9: *dependents* \| *double* \| *Number of dependents.*\
+> 10: *months* \| *double* \| *Months living at current address.*\
+> 11: *majorcards* \| *double* \| *Number of major credit cards held.*\
+> 12: *active* \| *double* \| *Number of active credit accounts.*
+
+### Analysis Questions
+
+1) Is there a relationship between age and yearly income?\
+2) Is there a relationship between yearly income and monthly credit card expenditure?\
+3) Does age influence an applicants length of stay at current address?\
+4) Do derogatory reports affect credit card approval?\
+5) Does owning a home improve your chances of approval?\
+6) Whats the impact of self employment on approval?\
+
+
+## Section 2
+
+### Data Analysis Plan
+**Approach**\
+1) Exploratory Data Analysis\
+2) Analysis of correlation among selected variables\
+3) Analysis of Linear Regression Models
+
+**Outcome Variables:** *expenditure*\
+**Predictor Variables:** *income*, *dependents*, *age*\
+
+Statistical Methods: Median, IQR, Linear Regression.\
+Median and IQR have been chosen because the data is skewed. 
+
+### Exploratory Data Analysis\
+##### No Missing Values
+
+```{r}
+# Search for missing data
+sapply(CreditCard, function(x) sum(is.na(x)))
+```
+
+```{r echo=FALSE,message=FALSE}
+# Convert variables to correct datatypes
+CreditCard_df <- convert(CreditCard, int(age, dependents, months, active))
+```
+##### Summary Statistics
+```{r}
+# Display Summary Statistics
+describe(CreditCard_df)
+```
+
+### Univariate Analysis (One numeric variable)
+
+Age distribution.
+The Histogram shows the modality (Unimodal) and skewness (right skewed) of the variable.
+It also reveals the presence of outlier values.\
+The Median age is `r median(CreditCard_df$age)`. The IQR of age is `r IQR(CreditCard_df$age)`.
+
+```{r}
+
+ggplot(CreditCard_df, aes(age)) + geom_histogram(binwidth = 5, color = 'red', fill = 'white') + geom_vline(aes(xintercept=mean(age)), colour = 'green') + geom_vline(aes(xintercept=median(age)), colour = 'blue') + labs(title = 'Age Distribution: Mean is Green, Median is Blue', x = 'Age', y = 'Count')
+```
+
+```{r}
+new_CreditCard <- CreditCard_df %>%
+  filter(age >= 18 )
+```
+
+New Age distribution(after removing outlier ages under 18).
+The Histogram shows the modality (Unimodal) and skewness (right skewed) of the variable. 
+The Median age is `r median(new_CreditCard$age)`.
+The IQR of age is `r IQR(new_CreditCard$age)`.
+
+```{r}
+ggplot(new_CreditCard, aes(age)) + geom_histogram(binwidth = 5, color = 'red', fill = 'white') + geom_vline(aes(xintercept=mean(age)), colour = 'green') + geom_vline(aes(xintercept=median(age)), colour = 'blue') + labs(title = 'Age Distribution: Mean is Green, Median is Blue', x = 'Age', y = 'Count')
+```
+
+##### Income distribution: The Histogram shows the modality (Unimodal) and skewness (right skewed) of the variable.
+
+The Median income is `r median(new_CreditCard$income)`.
+The IQR of income is `r IQR(new_CreditCard$income)`.
+
+```{r}
+ggplot(new_CreditCard, aes(income)) + geom_histogram(binwidth = 0.5, color = 'white', fill = 'red') + geom_vline(aes(xintercept=mean(income)), colour = 'green') + geom_vline(aes(xintercept=median(income)), colour = 'blue') + labs(title = 'Income Distribution: Mean is Green, Median is Blue', x = 'Income (in USD10,000)', y = 'Count')
+```
+
+##### Distribution of Average Monthly Credit Card Expenditure. Plot is Unimdal, right skewed
+
+The Median expenditure is `r median(CreditCard_df$expenditure)`.
+The IQR of expenditure is `r IQR(CreditCard_df$expenditure)`.
+
+```{r}
+ggplot(new_CreditCard, aes(expenditure)) + geom_histogram(binwidth = 100, color = 'white', fill = 'skyblue') + geom_vline(aes(xintercept=mean(expenditure)), colour = 'green') + geom_vline(aes(xintercept=median(expenditure)), colour = 'blue') + labs(title = 'Distribution of Credit Card Expenditure', subtitle = "Mean is Green, Median is Blue", x = 'Average Monthly Credit Card Expenditure', y = 'Count')
+```
+
+##### The density plot shows the relationship between home ownership and age. Majority of respondents between 30-40 own their own homes
+
+```{r}
+ggplot(new_CreditCard, aes(x = age, y = owner, fill = owner, alpha = 0.2)) +geom_density_ridges() +theme_ridges() + theme(legend.position = "none")+labs(x="Age",y="Home Ownership",title = "Distribution Home Ownership across ages")
+```
+
+##### The density plot shows the relationship betweem Self employment status and age. Similar Distribution between respondents who are self employed and those who are not
+
+```{r}
+ggplot(new_CreditCard, aes(x = age, y = selfemp, fill = selfemp, alpha = 0.2)) +geom_density_ridges() +theme_ridges() + theme(legend.position = "none")+labs(x="Age",y="Self Employment Status",title = "Distribution Employment across ages")
+```
+
+### Multivariate Analysis (One numeric variable and two categorical variables)
+
+The plot shows a lower median and IQR for Self Employed workers.
+This means self employed workers have lower average monthly credit card expenditure than regular workers\
+
+```{r}
+ggplot(new_CreditCard, aes(x=expenditure, y=selfemp, colour = owner)) + geom_boxplot() +labs(title = "Expenditure of Self employed and Employed Workers", x = "Average Monthly Credit Card Expenditure", y = "Self Employment Status")
+```
+
+##### Self employed home owners earn the most followed by employed home owners. In summary, home owners earn more.
+
+```{r}
+ggplot(new_CreditCard, aes(x=income, y=selfemp, colour = owner)) + geom_boxplot() +labs(title = "Income of Self employed and Employed Workers", x = "Yearly Income (in USD10,000)", y = "Self Employment Status")
+```
+
+## Section 3
+```{r}
+glimpse(new_CreditCard)
+```
+
